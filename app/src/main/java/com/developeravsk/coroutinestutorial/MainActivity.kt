@@ -12,6 +12,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
@@ -19,7 +20,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        val dummy:TextView=findViewById(R.id.dummy)
+        val dummy: TextView = findViewById(R.id.dummy)
         //simples way to start a coroutine
         // globalscope: this corutine will live longer as app lives, but once it finishes its job, it will end
         // coroutines will be started in a separate thread
@@ -51,16 +52,37 @@ class MainActivity : AppCompatActivity() {
         //we can also start our own new thread by writing newSingleThreadContext("MyThread_name")
         //useful thing about coroutine context is that we can easily switch them from within a coroutine
         GlobalScope.launch(Dispatchers.IO) {
-            val answer=doNetworkCall3()
+            val answer = doNetworkCall3()
             //we can switch context now to invoke ui operation in main thread
-            Log.d(TAG,"Starting coroutine in thread ${Thread.currentThread().name}")
+            Log.d(TAG, "Starting coroutine in thread ${Thread.currentThread().name}")
 
-            withContext(Dispatchers.Main){
+            withContext(Dispatchers.Main) {
                 //this code in this block will now be executed in mainthread
-                Log.d(TAG,"Setting text in thread ${Thread.currentThread().name}")
-                dummy.text=answer
+                Log.d(TAG, "Setting text in thread ${Thread.currentThread().name}")
+                dummy.text = answer
             }
         }
+
+        // will actually block the main thread
+        //if we use delay here, it will block UI update
+        // but why would i need it
+        //if i don't want coroutine behaviour , but still want to hold up main thread
+        Log.d(TAG, "Before Run Blocking")
+        runBlocking {
+            // we can also start a new coroutine because we are already inside a coroutine
+            launch(Dispatchers.IO) {
+                //coroutine 1
+            }
+            launch(Dispatchers.IO) {
+                //coroutine 2
+            }
+
+            Log.d(TAG, "Start Run Blocking")
+            delay(20000L)
+            Log.d(TAG, "End Run Blocking")
+
+        }
+        Log.d(TAG, "After Run Blocking")
     }
 
     // we can also write our own suspend function
@@ -69,6 +91,7 @@ class MainActivity : AppCompatActivity() {
         delay(5000L)
         return "This is the answer"
     }
+
     suspend fun doNetworkCall3(): String {
         delay(5000L)
         return "This is the context answer"
