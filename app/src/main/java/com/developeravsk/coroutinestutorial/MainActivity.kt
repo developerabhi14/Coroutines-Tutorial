@@ -1,13 +1,16 @@
 package com.developeravsk.coroutinestutorial
 
+import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings.Global
 import android.util.Log
+import android.widget.Button
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
@@ -18,6 +21,7 @@ import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.w3c.dom.Text
 import kotlin.system.measureTimeMillis
 
 class MainActivity : AppCompatActivity() {
@@ -26,58 +30,86 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         val dummy: TextView = findViewById(R.id.dummy)
-        //async and await
-        // if we have several suspend function and execute them both in a coroutine then they are sequential by default
-        // if we want to do two network calls we want them to execute at the same time
-        // we could just start two coroutines and execute them at once
-        GlobalScope.launch(Dispatchers.IO) {
-            val time = measureTimeMillis {
-                val answer1 = networkcall1()
-                val answer2 = networkcall2()
-                Log.d(TAG, "Answer 1 is $answer1")
-                Log.d(TAG, "Answer 2 is $answer2")
-            }
-            Log.d(TAG, "Request took $time milisecond")
-        }
-
-        GlobalScope.launch(Dispatchers.IO) {
-            val time = measureTimeMillis {
-                var answer1: String? = null
-                var answer2: String? = null
-                val job1= launch {
-                    answer1 = networkcall1()
+        // two useful coroutines scope
+        // globalscope will live as long as application does
+        // bad practice to use global scope because we rarely need our coroutines to be alive as long as our application
+        // for android, we have two useful scopes, lifecycle scopes and viewmodel scopes
+        // i have added some lifecycle dependencies
+        val button: Button=findViewById(R.id.button)
+        button.setOnClickListener {
+            lifecycleScope.launch {
+                while(true){
+                    delay(1000L)
+                    Log.d(TAG, "Still running")
                 }
-                val job2 = launch { answer2 = networkcall2() }
-                job1.join()
-                job2.join()
             }
-            Log.d(TAG, "New Request took $time milisecond")
-        }
-        //but this above is a bad way to do it
-        GlobalScope.launch(Dispatchers.IO) {
-            val time= measureTimeMillis {
-                val answer1=async { networkcall1() }
-                val answer2=async { networkcall2() }
-                Log.d(TAG, "${answer1.await()}")
-                Log.d(TAG, "${answer2.await()}")
+            GlobalScope.launch {
+                delay(5000L)
+                Intent(this@MainActivity, SecondActivity::class.java).also {
+                    startActivity(it)
+                    finish()
+                }
             }
-            Log.d(TAG, "Completely New Request took $time milisecond")
-
         }
+        //as we run this, the couroutine from MainActivity remains alive even though the activity is destroyed, because we defined in GlobalScope
+        // this is a big state, it creates memory leaks
+        // to solve this problem we swap global scope with lifecyclescope
+        // viewmodelscope will keep corutines alive as long as viewmodel is alive
+
     }
-
-    suspend fun networkcall1(): String {
-        delay(3000L)
-        return "Answer 1"
-    }
-
-    suspend fun networkcall2(): String {
-        delay(3000L)
-        return "Answer 2"
-    }
-
-
 }
+//        //async and await
+//        // if we have several suspend function and execute them both in a coroutine then they are sequential by default
+//        // if we want to do two network calls we want them to execute at the same time
+//        // we could just start two coroutines and execute them at once
+//        GlobalScope.launch(Dispatchers.IO) {
+//            val time = measureTimeMillis {
+//                val answer1 = networkcall1()
+//                val answer2 = networkcall2()
+//                Log.d(TAG, "Answer 1 is $answer1")
+//                Log.d(TAG, "Answer 2 is $answer2")
+//            }
+//            Log.d(TAG, "Request took $time milisecond")
+//        }
+//
+//        GlobalScope.launch(Dispatchers.IO) {
+//            val time = measureTimeMillis {
+//                var answer1: String? = null
+//                var answer2: String? = null
+//                val job1= launch {
+//                    answer1 = networkcall1()
+//                }
+//                val job2 = launch { answer2 = networkcall2() }
+//                job1.join()
+//                job2.join()
+//            }
+//            Log.d(TAG, "New Request took $time milisecond")
+//        }
+//        //but this above is a bad way to do it
+//        GlobalScope.launch(Dispatchers.IO) {
+//            val time= measureTimeMillis {
+//                val answer1=async { networkcall1() }
+//                val answer2=async { networkcall2() }
+//                Log.d(TAG, "${answer1.await()}")
+//                Log.d(TAG, "${answer2.await()}")
+//            }
+//            Log.d(TAG, "Completely New Request took $time milisecond")
+//
+//        }
+//    }
+//
+//    suspend fun networkcall1(): String {
+//        delay(3000L)
+//        return "Answer 1"
+//    }
+//
+//    suspend fun networkcall2(): String {
+//        delay(3000L)
+//        return "Answer 2"
+//    }
+//
+//
+//}
 //        //simples way to start a coroutine
 //        // globalscope: this corutine will live longer as app lives, but once it finishes its job, it will end
 //        // coroutines will be started in a separate thread
